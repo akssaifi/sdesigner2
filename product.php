@@ -1796,25 +1796,12 @@ $related_stmt->close();
         // --- REPLACE THE EXISTING addToCart FUNCTION ---
 function addToCart(item) {
     // First, send an AJAX request to update the server-side cart
-    fetch('cart.php', {
+    fetch('ajax_cart_handler.php', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: JSON.stringify({
-            action: 'add',
-            id: item.id,
-            quantity: item.quantity,
-            name: item.name,
-            price: item.price,
-            image: item.image,
-            color: item.color, // Include color if relevant
-            productType: item.productType, // Include type if relevant
-            isUnstitched: item.isUnstitched,
-            selectedMeters: item.selectedMeters,
-            stitchingOption: item.stitchingOption,
-            stitchCharges: item.stitchCharges
-        })
+        body: `action=add&product_id=${item.id}&quantity=${item.quantity}&color=${encodeURIComponent(item.color || '')}&isUnstitched=${item.isUnstitched || false}&selectedMeters=${item.selectedMeters || 0}&stitchingOption=${encodeURIComponent(item.stitchingOption || 'unstitched')}&stitchCharges=${item.stitchCharges || 0}`
     })
     .then(response => response.json())
     .then(data => {

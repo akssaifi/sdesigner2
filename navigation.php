@@ -986,26 +986,9 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
         
         if (cartToggle && cartDropdown) {
             cartToggle.addEventListener('click', (e) => {
-                e.stopPropagation();
-                cartDropdown.classList.toggle('active');
-                
-                // Close mobile menu if open
-                if (window.innerWidth <= 768 && nav && nav.classList.contains('active')) {
-                    closeMobileMenu();
-                }
-            });
-            
-            if (closeCart) {
-                closeCart.addEventListener('click', () => {
-                    cartDropdown.classList.remove('active');
-                });
-            }
-            
-            // Close cart when clicking outside
-            document.addEventListener('click', (e) => {
-                if (!cartToggle.contains(e.target) && !cartDropdown.contains(e.target)) {
-                    cartDropdown.classList.remove('active');
-                }
+                e.preventDefault();
+                // Redirect directly to cart.php instead of showing dropdown
+                window.location.href = 'cart.php';
             });
         }
         
@@ -1123,20 +1106,12 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
     
     // Cart functions
     function updateCartCount() {
-        // --- MODIFICATION: Prioritize session/cart.php data ---
-        fetchCartFromServer()
-            .then(serverCart => {
-                if (serverCart) {
-                    const totalItems = serverCart.reduce((sum, item) => sum + item.quantity, 0);
-                    const cartCount = document.querySelector('.cart-count');
-                    if (cartCount) {
-                        cartCount.textContent = totalItems;
-                        cartCount.style.display = totalItems > 0 ? 'flex' : 'none';
-                    }
-                } else {
-                    // Fallback to localStorage if server call fails
-                    const cart = JSON.parse(localStorage.getItem('cart')) || [];
-                    const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+        // Fetch cart from server via AJAX
+        fetch('ajax_cart_handler.php?action=get')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const totalItems = data.total_items;
                     const cartCount = document.querySelector('.cart-count');
                     if (cartCount) {
                         cartCount.textContent = totalItems;
@@ -1144,8 +1119,9 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
                     }
                 }
             })
-            .catch(() => {
-                // Fallback to localStorage if server call fails
+            .catch(error => {
+                console.error('Error fetching cart count:', error);
+                // Fallback to localStorage if server request fails
                 const cart = JSON.parse(localStorage.getItem('cart')) || [];
                 const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
                 const cartCount = document.querySelector('.cart-count');
@@ -1154,15 +1130,15 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
                     cartCount.style.display = totalItems > 0 ? 'flex' : 'none';
                 }
             });
-        // --- END MODIFICATION ---
     }
     
     function updateCartDropdown() {
-        // --- MODIFICATION: Prioritize session/cart.php data ---
-        fetchCartFromServer()
-            .then(serverCart => {
-                if (serverCart) {
-                    renderCartDropdown(serverCart);
+        // Fetch cart from server via AJAX
+        fetch('ajax_cart_handler.php?action=get')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    renderCartDropdown(data.cart);
                 } else {
                     // Fallback to localStorage
                     const cart = JSON.parse(localStorage.getItem('cart')) || [];
@@ -1174,12 +1150,11 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
                 const cart = JSON.parse(localStorage.getItem('cart')) || [];
                 renderCartDropdown(cart);
             });
-        // --- END MODIFICATION ---
     }
 
     // --- NEW FUNCTION: Fetch cart from server ---
     function fetchCartFromServer() {
-        return fetch('cart.php?action=get_cart', {
+        return fetch('ajax_cart_handler.php?action=get', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -1187,7 +1162,7 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
         })
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
+            if (data.status === 'success') {
                 // Update localStorage with server data to keep it in sync
                 localStorage.setItem('cart', JSON.stringify(data.cart));
                 return data.cart;
@@ -1214,7 +1189,7 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
                 return;
             }
 
-            cartItems.innerHTML = cart.map(item => `
+            cartItems.innerHTML = cart.map((item, index) => `
                 <div class="cart-item">
                     <img src="${item.image || 'assets/images/no-image.jpg'}" alt="${item.name}" 
                          onerror="this.src='assets/images/no-image.jpg'">
@@ -1225,7 +1200,7 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
                             <span>₹${formatPrice(item.price * item.quantity)}</span>
                         </div>
                     </div>
-                    <button class="remove-item" onclick="removeFromCart('${item.id}')">
+                    <button class="remove-item" onclick="removeFromCart(${index})">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -1244,46 +1219,33 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
         });
     }
     
-    function removeFromCart(productId) {
-    // Find index in cart (not ID — cart.php uses index-based removal)
-    const cart = JSON.parse(localStorage.getItem('cart')) || [];
-    const index = cart.findIndex(item => item.id == productId);
-    
-    if (index === -1) {
-        showNotification('Item not found in cart');
-        return;
+    function removeFromCart(index) {
+        // Get cart from localStorage to get item name
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const itemName = cart[index]?.name || 'Item';
+        
+        fetch('ajax_cart_handler.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `action=remove&index=${index}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Update localStorage to match server
+                localStorage.setItem('cart', JSON.stringify(data.cart));
+                // Dispatch event to update cart displays
+                window.dispatchEvent(new CustomEvent('cartUpdated'));
+                showNotification('Item removed');
+            } else {
+                throw new Error(data.message || 'Failed to remove item');
+            }
+        })
+        .catch(error => {
+            console.error('Remove from cart error:', error);
+            showNotification('❌ ' + (error.message || 'Could not remove item'));
+        });
     }
-
-    fetch('/cart.php?action=remove', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ index: index })
-    })
-    .then(async response => {
-        // 🔥 CRITICAL: Check if response is JSON or HTML
-        const text = await response.text();
-        try {
-            return JSON.parse(text);
-        } catch (e) {
-            // HTML response (e.g., login page, error)
-            console.error('Server returned HTML instead of JSON:', text.substring(0, 200));
-            throw new Error('Server error: HTML received instead of JSON');
-        }
-    })
-    .then(data => {
-        if (data.success) {
-            // Refresh cart from server
-            window.dispatchEvent(new CustomEvent('cartUpdated'));
-            showNotification('Item removed');
-        } else {
-            throw new Error(data.message || 'Failed to remove item');
-        }
-    })
-    .catch(error => {
-        console.error('Remove from cart error:', error);
-        showNotification('❌ ' + (error.message || 'Could not remove item'));
-    });
-}
     
     function showNotification(message) {
         // Remove any existing notifications
