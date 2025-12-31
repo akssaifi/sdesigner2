@@ -594,8 +594,30 @@ $show_social_links = getSetting($conn, 'show_social_links') ?? '1';
     <script>
         // Load cart on page load
         document.addEventListener('DOMContentLoaded', function() {
-            updateCartDisplay();
+            // First, try to sync cart with server
+            syncCartWithServer();
         });
+        
+        function syncCartWithServer() {
+            // Fetch cart from server to ensure sync
+            fetch('ajax_cart_handler.php?action=get')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Update localStorage to match server
+                    localStorage.setItem('cart', JSON.stringify(data.cart));
+                    updateCartDisplay();
+                } else {
+                    // If server request fails, just update display from localStorage
+                    updateCartDisplay();
+                }
+            })
+            .catch(error => {
+                console.error('Error syncing cart with server:', error);
+                // If server request fails, just update display from localStorage
+                updateCartDisplay();
+            });
+        }
 
         function updateCartDisplay() {
             const cart = JSON.parse(localStorage.getItem('cart')) || [];

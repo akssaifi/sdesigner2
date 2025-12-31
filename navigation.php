@@ -985,31 +985,10 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
         const closeCart = document.querySelector('.close-cart');
         
         if (cartToggle && cartDropdown) {
-            cartToggle.addEventListener(047click047, (e) => {
+            cartToggle.addEventListener('click', (e) => {
                 e.preventDefault();
                 // Redirect directly to cart.php instead of showing dropdown
-                window.location.href = 047cart.php047;
-            });
-                e.stopPropagation();
-                cartDropdown.classList.toggle('active');
-                
-                // Close mobile menu if open
-                if (window.innerWidth <= 768 && nav && nav.classList.contains('active')) {
-                    closeMobileMenu();
-                }
-            });
-            
-            if (closeCart) {
-                closeCart.addEventListener('click', () => {
-                    cartDropdown.classList.remove('active');
-                });
-            }
-            
-            // Close cart when clicking outside
-            document.addEventListener('click', (e) => {
-                if (!cartToggle.contains(e.target) && !cartDropdown.contains(e.target)) {
-                    cartDropdown.classList.remove('active');
-                }
+                window.location.href = 'cart.php';
             });
         }
         
@@ -1221,7 +1200,7 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
                             <span>₹${formatPrice(item.price * item.quantity)}</span>
                         </div>
                     </div>
-                    <button class="remove-item" onclick="removeFromCart('${item.id}')">
+                    <button class="remove-item" onclick="removeFromCart(${index})">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -1240,38 +1219,33 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
         });
     }
     
-    function removeFromCart(productId) {
-    // Find index in cart (not ID — cart.php uses index-based removal)
-    const cart = JSON.parse(localStorage.getItem('cart')) || [];
-    const index = cart.findIndex(item => item.id == productId);
-    
-    if (index === -1) {
-        showNotification('Item not found in cart');
-        return;
+    function removeFromCart(index) {
+        // Get cart from localStorage to get item name
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const itemName = cart[index]?.name || 'Item';
+        
+        fetch('ajax_cart_handler.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `action=remove&index=${index}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Update localStorage to match server
+                localStorage.setItem('cart', JSON.stringify(data.cart));
+                // Dispatch event to update cart displays
+                window.dispatchEvent(new CustomEvent('cartUpdated'));
+                showNotification('Item removed');
+            } else {
+                throw new Error(data.message || 'Failed to remove item');
+            }
+        })
+        .catch(error => {
+            console.error('Remove from cart error:', error);
+            showNotification('❌ ' + (error.message || 'Could not remove item'));
+        });
     }
-
-    fetch('ajax_cart_handler.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `action=remove&index=${index}`
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            // Update localStorage to match server
-            localStorage.setItem('cart', JSON.stringify(data.cart));
-            // Dispatch event to update cart displays
-            window.dispatchEvent(new CustomEvent('cartUpdated'));
-            showNotification('Item removed');
-        } else {
-            throw new Error(data.message || 'Failed to remove item');
-        }
-    })
-    .catch(error => {
-        console.error('Remove from cart error:', error);
-        showNotification('❌ ' + (error.message || 'Could not remove item'));
-    });
-}
     
     function showNotification(message) {
         // Remove any existing notifications
