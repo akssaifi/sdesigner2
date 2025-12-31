@@ -985,7 +985,11 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
         const closeCart = document.querySelector('.close-cart');
         
         if (cartToggle && cartDropdown) {
-            cartToggle.addEventListener('click', (e) => {
+            cartToggle.addEventListener(047click047, (e) => {
+                e.preventDefault();
+                // Redirect directly to cart.php instead of showing dropdown
+                window.location.href = 047cart.php047;
+            });
                 e.stopPropagation();
                 cartDropdown.classList.toggle('active');
                 
@@ -1246,25 +1250,17 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
         return;
     }
 
-    fetch('/cart.php?action=remove', {
+    fetch('ajax_cart_handler.php', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ index: index })
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `action=remove&index=${index}`
     })
-    .then(async response => {
-        // 🔥 CRITICAL: Check if response is JSON or HTML
-        const text = await response.text();
-        try {
-            return JSON.parse(text);
-        } catch (e) {
-            // HTML response (e.g., login page, error)
-            console.error('Server returned HTML instead of JSON:', text.substring(0, 200));
-            throw new Error('Server error: HTML received instead of JSON');
-        }
-    })
+    .then(response => response.json())
     .then(data => {
-        if (data.success) {
-            // Refresh cart from server
+        if (data.status === 'success') {
+            // Update localStorage to match server
+            localStorage.setItem('cart', JSON.stringify(data.cart));
+            // Dispatch event to update cart displays
             window.dispatchEvent(new CustomEvent('cartUpdated'));
             showNotification('Item removed');
         } else {
