@@ -2,6 +2,85 @@
 // cart.php - Shopping cart page
 require_once 'config.php';
 
+// Handle AJAX requests for cart operations
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json');
+    
+    $input = json_decode(file_get_contents('php://input'), true);
+    $action = $input['action'] ?? '';
+    
+    // Initialize cart session if not exists
+    if (!isset($_SESSION['cart'])) {
+        $_SESSION['cart'] = [];
+    }
+    
+    switch ($action) {
+        case 'add':
+            $item = [
+                'id' => $input['id'],
+                'name' => $input['name'],
+                'price' => $input['price'],
+                'image' => $input['image'],
+                'quantity' => $input['quantity'],
+                'color' => $input['color'] ?? '',
+                'productType' => $input['productType'] ?? '',
+                'isUnstitched' => $input['isUnstitched'] ?? false,
+                'selectedMeters' => $input['selectedMeters'] ?? 0,
+                'stitchingOption' => $input['stitchingOption'] ?? '',
+                'stitchCharges' => $input['stitchCharges'] ?? 0
+            ];
+            
+            $found = false;
+            foreach ($_SESSION['cart'] as &$cartItem) {
+                if ($cartItem['id'] == $item['id'] && 
+                    $cartItem['color'] == $item['color'] && 
+                    $cartItem['selectedMeters'] == $item['selectedMeters'] &&
+                    $cartItem['stitchingOption'] == $item['stitchingOption']) {
+                    $cartItem['quantity'] += $item['quantity'];
+                    $found = true;
+                    break;
+                }
+            }
+            
+            if (!$found) {
+                $_SESSION['cart'][] = $item;
+            }
+            
+            echo json_encode(['success' => true, 'message' => 'Item added to cart']);
+            exit;
+            
+        case 'remove':
+            $index = $input['index'] ?? -1;
+            if ($index >= 0 && $index < count($_SESSION['cart'])) {
+                array_splice($_SESSION['cart'], $index, 1);
+                echo json_encode(['success' => true, 'message' => 'Item removed from cart']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Item not found']);
+            }
+            exit;
+            
+        case 'update':
+            $index = $input['index'] ?? -1;
+            $quantity = $input['quantity'] ?? 1;
+            if ($index >= 0 && $index < count($_SESSION['cart']) && $quantity > 0) {
+                $_SESSION['cart'][$index]['quantity'] = $quantity;
+                echo json_encode(['success' => true, 'message' => 'Cart updated']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Invalid update']);
+            }
+            exit;
+            
+        default:
+            echo json_encode(['success' => false, 'message' => 'Invalid action']);
+            exit;
+    }
+} elseif (isset($_GET['action']) && $_GET['action'] === 'get_cart') {
+    header('Content-Type: application/json');
+    $cart = $_SESSION['cart'] ?? [];
+    echo json_encode(['success' => true, 'cart' => $cart]);
+    exit;
+}
+
 // Get boutique information
 $boutique_name = getSetting($conn, 'boutique_name') ?? 'SDesigner Boutique';
 $designer_name = getSetting($conn, 'designer_name') ?? 'Dinky Ahuja';
@@ -598,7 +677,27 @@ $show_social_links = getSetting($conn, 'show_social_links') ?? '1';
         });
 
         function updateCartDisplay() {
-            const cart = JSON.parse(localStorage.getItem('cart')) || [];
+            // First, try to get cart from server, then fallback to localStorage
+            fetchCartFromServer()
+                .then(serverCart => {
+                    if (serverCart) {
+                        // Use server cart data and update localStorage for consistency
+                        localStorage.setItem('cart', JSON.stringify(serverCart));
+                        renderCartItems(serverCart);
+                    } else {
+                        // Fallback to localStorage if server call fails
+                        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+                        renderCartItems(cart);
+                    }
+                })
+                .catch(() => {
+                    // Fallback to localStorage if server call fails
+                    const cart = JSON.parse(localStorage.getItem('cart')) || [];
+                    renderCartItems(cart);
+                });
+        }
+
+        function renderCartItems(cart) {
             const container = document.getElementById('cart-items-container');
             const subtotalEl = document.getElementById('subtotal');
             const totalEl = document.getElementById('total');
@@ -711,53 +810,146 @@ $show_social_links = getSetting($conn, 'show_social_links') ?? '1';
         }
 
         function updateQuantity(index, change, customValue = null) {
-            const cart = JSON.parse(localStorage.getItem('cart')) || [];
+            let quantity;
             
             if (customValue !== null) {
-                const value = parseInt(customValue);
-                if (value >= 1 && value <= 10) {
-                    cart[index].quantity = value;
-                }
+                quantity = parseInt(customValue);
+                if (quantity < 1 || quantity > 10) return;
             } else {
-                const newQuantity = cart[index].quantity + change;
-                if (newQuantity >= 1 && newQuantity <= 10) {
-                    cart[index].quantity = newQuantity;
-                }
+                const cart = JSON.parse(localStorage.getItem('cart')) || [];
+                if (index >= cart.length) return;
+                quantity = cart[index].quantity + change;
+                if (quantity < 1 || quantity > 10) return;
             }
             
-            localStorage.setItem('cart', JSON.stringify(cart));
-            updateCartDisplay();
-            showNotification('Cart updated');
+            // Update server first
+            fetch('/cart.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    action: 'update',
+                    index: index,
+                    quantity: quantity
+                })
+            })
+            .then(async response => {
+                // Check if response is JSON or HTML
+                const text = await response.text();
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error('Server returned HTML instead of JSON:', text.substring(0, 200));
+                    throw new Error('Server error: HTML received instead of JSON');
+                }
+            })
+            .then(data => {
+                if (data.success) {
+                    // Update localStorage and UI
+                    const cart = JSON.parse(localStorage.getItem('cart')) || [];
+                    if (index < cart.length) {
+                        cart[index].quantity = quantity;
+                        localStorage.setItem('cart', JSON.stringify(cart));
+                    }
+                    updateCartDisplay();
+                    showNotification('Cart updated');
+                } else {
+                    throw new Error(data.message || 'Failed to update quantity');
+                }
+            })
+            .catch(error => {
+                console.error('Update quantity error:', error);
+                showNotification('❌ ' + (error.message || 'Could not update quantity'));
+            });
         }
 
         function removeFromCart(index) {
-            const cart = JSON.parse(localStorage.getItem('cart')) || [];
-            const itemName = cart[index].name;
-            
-            cart.splice(index, 1);
-            localStorage.setItem('cart', JSON.stringify(cart));
-            updateCartDisplay();
-            showNotification(`${itemName} removed from cart`);
+            // Remove from server first
+            fetch('/cart.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    action: 'remove',
+                    index: index
+                })
+            })
+            .then(async response => {
+                // Check if response is JSON or HTML
+                const text = await response.text();
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error('Server returned HTML instead of JSON:', text.substring(0, 200));
+                    throw new Error('Server error: HTML received instead of JSON');
+                }
+            })
+            .then(data => {
+                if (data.success) {
+                    // Update localStorage and UI
+                    const cart = JSON.parse(localStorage.getItem('cart')) || [];
+                    const itemName = cart[index] ? cart[index].name : 'Item';
+                    cart.splice(index, 1);
+                    localStorage.setItem('cart', JSON.stringify(cart));
+                    updateCartDisplay();
+                    showNotification(`${itemName} removed from cart`);
+                } else {
+                    throw new Error(data.message || 'Failed to remove item');
+                }
+            })
+            .catch(error => {
+                console.error('Remove from cart error:', error);
+                showNotification('❌ ' + (error.message || 'Could not remove item'));
+            });
+        }
+
+        // New function to fetch cart from server
+        function fetchCartFromServer() {
+            return fetch('cart.php?action=get_cart', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    return data.cart;
+                } else {
+                    return null; // Indicate failure
+                }
+            })
+            .catch(error => {
+                console.warn('Could not fetch cart from server:', error);
+                return null; // Indicate failure
+            });
         }
 
         // Checkout function
         document.getElementById('checkout-btn').addEventListener('click', function() {
-            const cart = JSON.parse(localStorage.getItem('cart')) || [];
-            if (cart.length === 0) return;
-            
-            // Here you would typically redirect to checkout page
-            // For now, we'll show a confirmation
-            if (confirm('Proceed to checkout?')) {
-                showNotification('Redirecting to checkout...');
-                window.location.href = 'checkout.php';
-                
-                // For demo purposes, clear cart
-                setTimeout(() => {
-                    localStorage.removeItem('cart');
-                    updateCartDisplay();
-                    showNotification('Order placed successfully! Thank you for your purchase.');
-                }, 2000);
-            }
+            // First, get the cart from server to ensure we have the most recent data
+            fetchCartFromServer()
+                .then(serverCart => {
+                    if (serverCart && serverCart.length > 0) {
+                        if (confirm('Proceed to checkout?')) {
+                            showNotification('Redirecting to checkout...');
+                            window.location.href = 'checkout.php';
+                        }
+                    } else {
+                        showNotification('Your cart is empty!');
+                    }
+                })
+                .catch(() => {
+                    // Fallback to localStorage if server call fails
+                    const cart = JSON.parse(localStorage.getItem('cart')) || [];
+                    if (cart.length === 0) {
+                        showNotification('Your cart is empty!');
+                        return;
+                    }
+                    
+                    if (confirm('Proceed to checkout?')) {
+                        showNotification('Redirecting to checkout...');
+                        window.location.href = 'checkout.php';
+                    }
+                });
         });
 
         // Helper function to format price
@@ -770,7 +962,28 @@ $show_social_links = getSetting($conn, 'show_social_links') ?? '1';
 
         // Update cart count in header
         function updateCartCount() {
-            const cart = JSON.parse(localStorage.getItem('cart')) || [];
+            // Try to get cart from server first, then fallback to localStorage
+            fetchCartFromServer()
+                .then(serverCart => {
+                    if (serverCart) {
+                        // Use server cart data and update localStorage for consistency
+                        localStorage.setItem('cart', JSON.stringify(serverCart));
+                        calculateCartCount(serverCart);
+                    } else {
+                        // Fallback to localStorage if server call fails
+                        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+                        calculateCartCount(cart);
+                    }
+                })
+                .catch(() => {
+                    // Fallback to localStorage if server call fails
+                    const cart = JSON.parse(localStorage.getItem('cart')) || [];
+                    calculateCartCount(cart);
+                });
+        }
+        
+        // Helper function to calculate cart count
+        function calculateCartCount(cart) {
             const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
             const cartCount = document.querySelector('.cart-count');
             if (cartCount) {
