@@ -17,25 +17,26 @@ RewriteRule .* - [E=BASE:/]
 
 RewriteBase %{ENV:BASE}
 
-# Exclude checkout.php from any URL rewriting
+# Exclude checkout.php and cart_handler.php from any URL rewriting
 RewriteRule ^checkout\.php$ - [L]
+RewriteRule ^cart_handler\.php$ - [L]
 
-# Redirect .php to non-.php (except checkout.php)
-RewriteCond %{THE_REQUEST} !checkout\.php [NC]
+# Redirect .php to non-.php (except checkout.php and cart_handler.php)
+RewriteCond %{THE_REQUEST} !(checkout|cart_handler)\.php [NC]
 RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s([^.]+)\.php [NC]
 RewriteRule ^ %1 [R=301,L]
 
-# Internally rewrite non-.php to .php (except checkout.php)
+# Internally rewrite non-.php to .php (except checkout.php and cart_handler.php)
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{ENV:XAMPP_FS2} true
 RewriteCond %{DOCUMENT_ROOT}/fs2/$1.php -f
-RewriteCond %{REQUEST_URI} !^/checkout [NC]
+RewriteCond %{REQUEST_URI} !^/(checkout|cart_handler) [NC]
 RewriteRule ^(.*?)/?$ /fs2/$1.php [L]
 
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{ENV:XAMPP_FS2} !true
 RewriteCond %{DOCUMENT_ROOT}/$1.php -f
-RewriteCond %{REQUEST_URI} !^/checkout [NC]
+RewriteCond %{REQUEST_URI} !^/(checkout|cart_handler) [NC]
 RewriteRule ^(.*?)/?$ $1.php [L]
 
 # Prevent directory listing
