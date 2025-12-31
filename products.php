@@ -1269,6 +1269,7 @@ if ($category_id > 0) {
                             card.querySelector('video')?.src;
                 
                 // If imgSrc exists, try to convert to relative path
+                let productImage;
                 if (imgSrc) {
                     try {
                         const url = new URL(imgSrc, window.location.origin);
@@ -1360,18 +1361,9 @@ function addToCart(product) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Update localStorage with the server's cart state (optional)
-            // localStorage.setItem('cart', JSON.stringify(data.cart));
-            // Or, just update local storage optimistically and rely on sync via event
-            let cart = JSON.parse(localStorage.getItem('cart')) || [];
-            const existingItem = cart.find(item => item.id === product.id);
-            if (existingItem) {
-                existingItem.quantity += product.quantity;
-            } else {
-                cart.push(product);
-            }
-            localStorage.setItem('cart', JSON.stringify(cart));
-
+            // Update localStorage with the server's cart state
+            localStorage.setItem('cart', JSON.stringify(data.cart));
+            
             // Dispatch the event to notify navigation.php to update its display
             window.dispatchEvent(new CustomEvent('cartUpdated'));
             console.log("Cart updated via AJAX and event dispatched.");
@@ -1407,34 +1399,29 @@ function addToCart(product) {
 
         // Shared cart sync for all pages
 function updateCartCount() {
-    fetch('/cart.php?action=get_cart')
-        .then(async r => {
-            const text = await r.text();
-            try {
-                const data = JSON.parse(text);
-                if (data.success) {
-                    const count = data.item_count || 0;
-                    const el = document.querySelector('.cart-count');
-                    if (el) {
-                        el.textContent = count;
-                        el.style.display = count > 0 ? 'flex' : 'none';
-                    }
-                    // Sync localStorage for offline fallback
-                    localStorage.setItem('cart', JSON.stringify(data.cart || []));
-                }
-            } catch (e) {
-                console.warn('Cart sync failed, falling back to localStorage');
-                const cart = JSON.parse(localStorage.getItem('cart')) || [];
-                const count = cart.reduce((s, i) => s + i.quantity, 0);
+    fetch('cart.php?action=get_cart')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const count = data.item_count || 0;
                 const el = document.querySelector('.cart-count');
                 if (el) {
                     el.textContent = count;
                     el.style.display = count > 0 ? 'flex' : 'none';
                 }
+                // Sync localStorage for offline fallback
+                localStorage.setItem('cart', JSON.stringify(data.cart || []));
             }
         })
-        .catch(err => {
-            console.error('Cart sync error:', err);
+        .catch(error => {
+            console.warn('Cart sync failed, falling back to localStorage');
+            const cart = JSON.parse(localStorage.getItem('cart')) || [];
+            const count = cart.reduce((s, i) => s + i.quantity, 0);
+            const el = document.querySelector('.cart-count');
+            if (el) {
+                el.textContent = count;
+                el.style.display = count > 0 ? 'flex' : 'none';
+            }
         });
 }
 

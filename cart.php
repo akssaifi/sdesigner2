@@ -1,8 +1,108 @@
 <?php
-// cart.php - Shopping cart page
+// cart.php - Shopping cart page with AJAX API
 require_once 'config.php';
 
-// Get boutique information
+// Check if this is an AJAX request for cart operations
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json');
+    
+    $input = json_decode(file_get_contents('php://input'), true);
+    $action = $input['action'] ?? '';
+    
+    // Handle different cart operations
+    switch ($action) {
+        case 'add':
+            // Add item to server-side cart (we'll use session for this)
+            session_start();
+            $cart = $_SESSION['cart'] ?? [];
+            
+            $item = [
+                'id' => $input['id'],
+                'name' => $input['name'],
+                'price' => $input['price'],
+                'image' => $input['image'],
+                'quantity' => $input['quantity'] ?? 1,
+                'color' => $input['color'] ?? null,
+                'productType' => $input['productType'] ?? null,
+                'isUnstitched' => $input['isUnstitched'] ?? false,
+                'selectedMeters' => $input['selectedMeters'] ?? null,
+                'stitchingOption' => $input['stitchingOption'] ?? null,
+                'stitchCharges' => $input['stitchCharges'] ?? 0
+            ];
+            
+            // Check if item already exists in cart
+            $existingIndex = null;
+            foreach ($cart as $index => $cartItem) {
+                if ($cartItem['id'] == $item['id'] &&
+                    $cartItem['color'] == $item['color'] &&
+                    $cartItem['stitchingOption'] == $item['stitchingOption']) {
+                    $existingIndex = $index;
+                    break;
+                }
+            }
+            
+            if ($existingIndex !== null) {
+                $cart[$existingIndex]['quantity'] += $item['quantity'];
+            } else {
+                $cart[] = $item;
+            }
+            
+            $_SESSION['cart'] = $cart;
+            
+            echo json_encode(['success' => true, 'message' => 'Item added to cart', 'cart' => $cart]);
+            exit;
+            
+        case 'update':
+            // Update item quantity
+            session_start();
+            $cart = $_SESSION['cart'] ?? [];
+            $index = $input['index'] ?? -1;
+            $quantity = $input['quantity'] ?? 1;
+            
+            if ($index >= 0 && $index < count($cart) && $quantity > 0) {
+                $cart[$index]['quantity'] = $quantity;
+                $_SESSION['cart'] = $cart;
+            }
+            
+            echo json_encode(['success' => true, 'message' => 'Cart updated', 'cart' => $cart]);
+            exit;
+            
+        case 'remove':
+            // Remove item from cart
+            session_start();
+            $cart = $_SESSION['cart'] ?? [];
+            $index = $input['index'] ?? -1;
+            
+            if ($index >= 0 && $index < count($cart)) {
+                array_splice($cart, $index, 1);
+                $_SESSION['cart'] = $cart;
+            }
+            
+            echo json_encode(['success' => true, 'message' => 'Item removed from cart', 'cart' => $cart]);
+            exit;
+            
+        default:
+            echo json_encode(['success' => false, 'message' => 'Invalid action']);
+            exit;
+    }
+}
+
+// Handle GET requests for cart data
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] === 'get_cart') {
+    header('Content-Type: application/json');
+    session_start();
+    $cart = $_SESSION['cart'] ?? [];
+    $item_count = array_sum(array_column($cart, 'quantity'));
+    
+    echo json_encode([
+        'success' => true,
+        'cart' => $cart,
+        'item_count' => $item_count
+    ]);
+    exit;
+}
+
+// Get boutique information for HTML page
 $boutique_name = getSetting($conn, 'boutique_name') ?? 'SDesigner Boutique';
 $designer_name = getSetting($conn, 'designer_name') ?? 'Dinky Ahuja';
 $location = getSetting($conn, 'location') ?? 'Jalandhar, Punjab';
@@ -729,33 +829,90 @@ $show_social_links = getSetting($conn, 'show_social_links') ?? '1';
         }
 
         function updateQuantity(index, change, customValue = null) {
-            const cart = JSON.parse(localStorage.getItem('cart')) || [];
+            let newQuantity;
             
             if (customValue !== null) {
-                const value = parseInt(customValue);
-                if (value >= 1 && value <= 10) {
-                    cart[index].quantity = value;
-                }
+                newQuantity = parseInt(customValue);
+                if (newQuantity < 1 || newQuantity > 10) return;
             } else {
-                const newQuantity = cart[index].quantity + change;
-                if (newQuantity >= 1 && newQuantity <= 10) {
-                    cart[index].quantity = newQuantity;
-                }
+                const cart = JSON.parse(localStorage.getItem('cart')) || [];
+                newQuantity = cart[index].quantity + change;
+                if (newQuantity < 1 || newQuantity > 10) return;
             }
             
-            localStorage.setItem('cart', JSON.stringify(cart));
-            updateCartDisplay();
-            showNotification('Cart updated');
+            // Send AJAX request to update server-side cart
+            fetch('cart.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'update',
+                    index: index,
+                    quantity: newQuantity
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update localStorage with server response
+                    localStorage.setItem('cart', JSON.stringify(data.cart));
+                    updateCartDisplay();
+                    showNotification('Cart updated');
+                } else {
+                    console.error('Error updating cart:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error updating cart:', error);
+                // Fallback: update localStorage only
+                const cart = JSON.parse(localStorage.getItem('cart')) || [];
+                if (customValue !== null) {
+                    cart[index].quantity = parseInt(customValue);
+                } else {
+                    cart[index].quantity = cart[index].quantity + change;
+                }
+                localStorage.setItem('cart', JSON.stringify(cart));
+                updateCartDisplay();
+            });
         }
 
         function removeFromCart(index) {
+            // Get item name before removal for notification
             const cart = JSON.parse(localStorage.getItem('cart')) || [];
             const itemName = cart[index].name;
             
-            cart.splice(index, 1);
-            localStorage.setItem('cart', JSON.stringify(cart));
-            updateCartDisplay();
-            showNotification(`${itemName} removed from cart`);
+            // Send AJAX request to update server-side cart
+            fetch('cart.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'remove',
+                    index: index
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update localStorage with server response
+                    localStorage.setItem('cart', JSON.stringify(data.cart));
+                    updateCartDisplay();
+                    showNotification(`${itemName} removed from cart`);
+                } else {
+                    console.error('Error removing item:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error removing item:', error);
+                // Fallback: update localStorage only
+                const cart = JSON.parse(localStorage.getItem('cart')) || [];
+                cart.splice(index, 1);
+                localStorage.setItem('cart', JSON.stringify(cart));
+                updateCartDisplay();
+                showNotification(`${itemName} removed from cart`);
+            });
         }
 
         // Checkout function
@@ -788,13 +945,40 @@ $show_social_links = getSetting($conn, 'show_social_links') ?? '1';
 
         // Update cart count in header
         function updateCartCount() {
-            const cart = JSON.parse(localStorage.getItem('cart')) || [];
-            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-            const cartCount = document.querySelector('.cart-count');
-            if (cartCount) {
-                cartCount.textContent = totalItems;
-                cartCount.style.display = totalItems > 0 ? 'flex' : 'none';
-            }
+            // First try to sync with server
+            fetch('cart.php?action=get_cart')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update localStorage with server data
+                        localStorage.setItem('cart', JSON.stringify(data.cart));
+                        const count = data.item_count || 0;
+                        const cartCount = document.querySelector('.cart-count');
+                        if (cartCount) {
+                            cartCount.textContent = count;
+                            cartCount.style.display = count > 0 ? 'flex' : 'none';
+                        }
+                    } else {
+                        // Fallback to localStorage
+                        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+                        const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+                        const cartCount = document.querySelector('.cart-count');
+                        if (cartCount) {
+                            cartCount.textContent = totalItems;
+                            cartCount.style.display = totalItems > 0 ? 'flex' : 'none';
+                        }
+                    }
+                })
+                .catch(error => {
+                    // Fallback to localStorage on error
+                    const cart = JSON.parse(localStorage.getItem('cart')) || [];
+                    const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+                    const cartCount = document.querySelector('.cart-count');
+                    if (cartCount) {
+                        cartCount.textContent = totalItems;
+                        cartCount.style.display = totalItems > 0 ? 'flex' : 'none';
+                    }
+                });
         }
 
         // Mobile notification function
