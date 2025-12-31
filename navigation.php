@@ -1154,7 +1154,7 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
 
     // --- NEW FUNCTION: Fetch cart from server ---
     function fetchCartFromServer() {
-        return fetch('cart.php?action=get_cart', {
+        return fetch('ajax_cart_handler.php?action=get', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -1162,7 +1162,7 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
         })
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
+            if (data.status === 'success') {
                 // Update localStorage with server data to keep it in sync
                 localStorage.setItem('cart', JSON.stringify(data.cart));
                 return data.cart;
@@ -1189,7 +1189,7 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
                 return;
             }
 
-            cartItems.innerHTML = cart.map(item => `
+            cartItems.innerHTML = cart.map((item, index) => `
                 <div class="cart-item">
                     <img src="${item.image || 'assets/images/no-image.jpg'}" alt="${item.name}" 
                          onerror="this.src='assets/images/no-image.jpg'">
