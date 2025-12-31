@@ -596,6 +596,24 @@ $show_social_links = getSetting($conn, 'show_social_links') ?? '1';
         document.addEventListener('DOMContentLoaded', function() {
             updateCartDisplay();
         });
+        
+        // Function to normalize image path (convert absolute URLs to relative paths)
+        function normalizeImagePath(imagePath) {
+            if (!imagePath) return null;
+            
+            try {
+                // Check if it's an absolute URL
+                if (imagePath.startsWith('http')) {
+                    const url = new URL(imagePath, window.location.origin);
+                    return url.pathname; // Return just the path part
+                }
+                // If it's already a relative path, return as is
+                return imagePath;
+            } catch(e) {
+                // If URL parsing fails, return the original path
+                return imagePath;
+            }
+        }
 
         function updateCartDisplay() {
             const cart = JSON.parse(localStorage.getItem('cart')) || [];
@@ -662,12 +680,12 @@ $show_social_links = getSetting($conn, 'show_social_links') ?? '1';
                     <div class="cart-item" data-index="${index}">
                         <div class="cart-item-info">
                             <div class="cart-item-image">
-                                <img src="${item.image || 'assets/images/no-image.jpg'}" alt="${item.name}" 
+                                <img src="${normalizeImagePath(item.image) || 'assets/images/no-image.jpg'}" alt="${item.name}" 
                                      onerror="this.src='assets/images/no-image.jpg'">
                             </div>
                             <div class="cart-item-details">
                                 <h3>${item.name}</h3>
-                                <p>${item.isUnstitched ? `${item.selectedMeters} meters` : ''}</p>
+                                <p>${item.isUnstitched ? \`\${item.selectedMeters} meters\` : ''}</p>
                                 ${stitchingInfo}
                             </div>
                         </div>

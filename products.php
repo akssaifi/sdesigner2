@@ -1264,9 +1264,39 @@ if ($category_id > 0) {
                 const priceText = card.querySelector('.product-price').textContent;
                 const productPrice = parsePrice(priceText);
                 
-                const productImage = card.querySelector('img')?.src || 
-                                   card.querySelector('video')?.src ||
-                                   'assets/images/no-image.jpg';
+                // Get the image source and convert to relative path if needed
+                let imgSrc = card.querySelector('img')?.src || 
+                            card.querySelector('video')?.src;
+                
+                // If imgSrc exists, try to convert to relative path
+                if (imgSrc) {
+                    try {
+                        const url = new URL(imgSrc, window.location.origin);
+                        let relativePath = url.pathname; // Get the relative path
+                        
+                        // Ensure the path starts with a slash and is relative to root
+                        if (!relativePath.startsWith('/')) {
+                            relativePath = '/' + relativePath;
+                        }
+                        
+                        productImage = relativePath;
+                    } catch(e) {
+                        // If URL parsing fails, try to extract path from the src
+                        // Remove the domain part if it exists
+                        if (imgSrc.startsWith(window.location.origin)) {
+                            productImage = imgSrc.replace(window.location.origin, '');
+                        } else {
+                            productImage = imgSrc;
+                        }
+                        
+                        // Ensure it starts with a slash
+                        if (!productImage.startsWith('/')) {
+                            productImage = '/' + productImage;
+                        }
+                    }
+                } else {
+                    productImage = 'assets/images/no-image.jpg';
+                }
                 
                 // Add to cart
                 const cartItem = {
