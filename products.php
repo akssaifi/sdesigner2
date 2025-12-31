@@ -1345,6 +1345,9 @@ function addToCart(product) {
             // Dispatch the event to notify navigation.php to update its display
             window.dispatchEvent(new CustomEvent('cartUpdated'));
             console.log("Cart updated via AJAX and event dispatched.");
+            
+            // Show notification
+            showNotification(product.name + " added to cart!");
         } else {
             console.error("Server error:", data.message);
             // Fallback: update localStorage only if server fails
@@ -1357,6 +1360,7 @@ function addToCart(product) {
             }
             localStorage.setItem('cart', JSON.stringify(cart));
             updateCartCount(); // Update local count
+            showNotification(product.name + " added to cart!");
         }
     })
     .catch(error => {
@@ -1371,13 +1375,14 @@ function addToCart(product) {
         }
         localStorage.setItem('cart', JSON.stringify(cart));
         updateCartCount(); // Update local count
+        showNotification(product.name + " added to cart!");
     });
 }
 // --- END REPLACE ---
 
         // Shared cart sync for all pages
 function updateCartCount() {
-    fetch('/cart.php?action=get_cart')
+    fetch('cart_handler.php?action=get_cart')
         .then(async r => {
             const text = await r.text();
             try {
@@ -1414,6 +1419,45 @@ document.addEventListener('DOMContentLoaded', updateCartCount);
 // Listen for cart changes (e.g., add/remove on other pages)
 window.addEventListener('cartUpdated', updateCartCount);
 
+        // Notification function
+        function showNotification(message) {
+            // Remove any existing notifications
+            document.querySelectorAll('.custom-notification').forEach(el => el.remove());
+            
+            const notification = document.createElement('div');
+            notification.className = 'custom-notification';
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: var(--primary);
+                color: white;
+                padding: 1rem 1.5rem;
+                border-radius: var(--radius);
+                box-shadow: var(--shadow-lg);
+                z-index: 9999;
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                transform: translateX(150%);
+                transition: transform 0.3s ease;
+            `;
+            notification.innerHTML = `
+                <i class="fas fa-check-circle"></i>
+                <span>${message}</span>
+            `;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.transform = 'translateX(0)';
+            }, 10);
+            
+            setTimeout(() => {
+                notification.style.transform = 'translateX(150%)';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+        
         // Mobile notification function
         function showMobileNotification(message) {
             const notification = document.getElementById('mobileNotification');

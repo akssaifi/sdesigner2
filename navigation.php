@@ -979,44 +979,22 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
             }
         });
         
-        // Cart functionality
+        // Cart functionality - redirect to cart page instead of showing dropdown
         const cartToggle = document.querySelector('.cart-toggle');
-        const cartDropdown = document.querySelector('.cart-dropdown');
-        const closeCart = document.querySelector('.close-cart');
         
-        if (cartToggle && cartDropdown) {
+        if (cartToggle) {
             cartToggle.addEventListener('click', (e) => {
-                e.stopPropagation();
-                cartDropdown.classList.toggle('active');
-                
-                // Close mobile menu if open
-                if (window.innerWidth <= 768 && nav && nav.classList.contains('active')) {
-                    closeMobileMenu();
-                }
-            });
-            
-            if (closeCart) {
-                closeCart.addEventListener('click', () => {
-                    cartDropdown.classList.remove('active');
-                });
-            }
-            
-            // Close cart when clicking outside
-            document.addEventListener('click', (e) => {
-                if (!cartToggle.contains(e.target) && !cartDropdown.contains(e.target)) {
-                    cartDropdown.classList.remove('active');
-                }
+                e.preventDefault();
+                window.location.href = 'cart.php';
             });
         }
         
-        // Initialize cart on page load
+        // Initialize cart count on page load
         updateCartCount();
-        updateCartDropdown();
 
         // Listen for custom events to update cart from other parts of the site
         window.addEventListener('cartUpdated', function() {
             updateCartCount();
-            updateCartDropdown();
         });
         
         // SIMPLIFIED SEARCH FUNCTIONALITY - WORKING VERSION
@@ -1177,65 +1155,7 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
         // --- END MODIFICATION ---
     }
 
-    // --- NEW FUNCTION: Fetch cart from server ---
-    function fetchCartFromServer() {
-        return fetch('cart_handler.php?action=get_cart', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Update localStorage with server data to keep it in sync
-                localStorage.setItem('cart', JSON.stringify(data.cart));
-                return data.cart;
-            } else {
-                return null; // Indicate failure
-            }
-        })
-        .catch(error => {
-            console.warn('Could not fetch cart from server:', error);
-            return null; // Indicate failure
-        });
-    }
-    // --- END NEW FUNCTION ---
 
-    // --- NEW FUNCTION: Render cart dropdown HTML ---
-    function renderCartDropdown(cart) {
-        const cartItems = document.getElementById('cartDropdownItems');
-        const cartTotal = document.getElementById('cartDropdownTotal');
-
-        if (cartItems && cartTotal) {
-            if (cart.length === 0) {
-                cartItems.innerHTML = '<div class="empty-cart"><i class="fas fa-shopping-cart"></i><p>Your cart is empty</p></div>';
-                cartTotal.textContent = '₹0.00';
-                return;
-            }
-
-            cartItems.innerHTML = cart.map(item => `
-                <div class="cart-item">
-                    <img src="${item.image || 'assets/images/no-image.jpg'}" alt="${item.name}" 
-                         onerror="this.src='assets/images/no-image.jpg'">
-                    <div class="cart-item-info">
-                        <h4>${item.name}</h4>
-                        <div class="cart-item-price">
-                            <span>₹${formatPrice(item.price)} × ${item.quantity}</span>
-                            <span>₹${formatPrice(item.price * item.quantity)}</span>
-                        </div>
-                    </div>
-                    <button class="remove-item" onclick="removeFromCart('${item.id}')">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            `).join('');
-
-            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            cartTotal.textContent = '₹' + formatPrice(total);
-        }
-    }
-    // --- END NEW FUNCTION ---
     
     function formatPrice(price) {
         return price.toLocaleString('en-IN', {
@@ -1254,10 +1174,10 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
         return;
     }
 
-    fetch('/cart_handler.php?action=remove', {
+    fetch('/cart_handler.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: cartItem.id })
+        body: JSON.stringify({ action: 'remove', id: productId })
     })
     .then(async response => {
         // 🔥 CRITICAL: Check if response is JSON or HTML

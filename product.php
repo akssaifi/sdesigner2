@@ -1852,6 +1852,9 @@ function addToCart(item) {
             // Dispatch the event to notify navigation.php to update its display
             window.dispatchEvent(new CustomEvent('cartUpdated'));
             console.log("Cart updated via AJAX and event dispatched.");
+            
+            // Show notification
+            showNotification(item.name + " added to cart!");
         } else {
             console.error("Server error:", data.message);
             // Fallback: update localStorage only if server fails
@@ -1878,6 +1881,7 @@ function addToCart(item) {
             }
             localStorage.setItem('cart', JSON.stringify(cart));
             updateCartCount(); // Update local count
+            showNotification(item.name + " added to cart!");
         }
     })
     .catch(error => {
@@ -1906,6 +1910,7 @@ function addToCart(item) {
         }
         localStorage.setItem('cart', JSON.stringify(cart));
         updateCartCount(); // Update local count
+        showNotification(item.name + " added to cart!");
     });
 }
 // --- END REPLACE ---
