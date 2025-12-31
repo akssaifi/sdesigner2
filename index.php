@@ -1620,7 +1620,7 @@ $work_tags = getMetaTags($conn, 'work');
         // --- REPLACE THE EXISTING addToCart FUNCTION ---
 function addToCart(product) {
     // First, send an AJAX request to update the server-side cart
-    fetch('cart.php', {
+    fetch('cart_handler.php', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -1689,7 +1689,7 @@ function addToCart(product) {
 // --- END REPLACE ---
 // Shared cart sync for all pages
 function updateCartCount() {
-    fetch('/cart.php?action=get_cart')
+    fetch('/cart_handler.php?action=get_cart')
         .then(async r => {
             const text = await r.text();
             try {

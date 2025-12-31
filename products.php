@@ -1307,7 +1307,7 @@ if ($category_id > 0) {
       // --- REPLACE THE EXISTING addToCart FUNCTION ---
 function addToCart(product) {
     // First, send an AJAX request to update the server-side cart
-    fetch('cart.php', {
+    fetch('cart_handler.php', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

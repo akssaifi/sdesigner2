@@ -1179,7 +1179,7 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
 
     // --- NEW FUNCTION: Fetch cart from server ---
     function fetchCartFromServer() {
-        return fetch('cart.php?action=get_cart', {
+        return fetch('cart_handler.php?action=get_cart', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -1254,10 +1254,10 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
         return;
     }
 
-    fetch('/cart.php?action=remove', {
+    fetch('/cart_handler.php?action=remove', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ index: index })
+        body: JSON.stringify({ id: cartItem.id })
     })
     .then(async response => {
         // 🔥 CRITICAL: Check if response is JSON or HTML

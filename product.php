@@ -1796,7 +1796,7 @@ $related_stmt->close();
         // --- REPLACE THE EXISTING addToCart FUNCTION ---
 function addToCart(item) {
     // First, send an AJAX request to update the server-side cart
-    fetch('cart.php', {
+    fetch('cart_handler.php', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -1912,7 +1912,7 @@ function addToCart(item) {
         
        // Shared cart sync for all pages
 function updateCartCount() {
-    fetch('/cart.php?action=get_cart')
+    fetch('/cart_handler.php?action=get_cart')
         .then(async r => {
             const text = await r.text();
             try {
