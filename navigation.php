@@ -1123,20 +1123,12 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
     
     // Cart functions
     function updateCartCount() {
-        // --- MODIFICATION: Prioritize session/cart.php data ---
-        fetchCartFromServer()
-            .then(serverCart => {
-                if (serverCart) {
-                    const totalItems = serverCart.reduce((sum, item) => sum + item.quantity, 0);
-                    const cartCount = document.querySelector('.cart-count');
-                    if (cartCount) {
-                        cartCount.textContent = totalItems;
-                        cartCount.style.display = totalItems > 0 ? 'flex' : 'none';
-                    }
-                } else {
-                    // Fallback to localStorage if server call fails
-                    const cart = JSON.parse(localStorage.getItem('cart')) || [];
-                    const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+        // Fetch cart from server via AJAX
+        fetch('ajax_cart_handler.php?action=get')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const totalItems = data.total_items;
                     const cartCount = document.querySelector('.cart-count');
                     if (cartCount) {
                         cartCount.textContent = totalItems;
@@ -1144,8 +1136,9 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
                     }
                 }
             })
-            .catch(() => {
-                // Fallback to localStorage if server call fails
+            .catch(error => {
+                console.error('Error fetching cart count:', error);
+                // Fallback to localStorage if server request fails
                 const cart = JSON.parse(localStorage.getItem('cart')) || [];
                 const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
                 const cartCount = document.querySelector('.cart-count');
@@ -1154,15 +1147,15 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
                     cartCount.style.display = totalItems > 0 ? 'flex' : 'none';
                 }
             });
-        // --- END MODIFICATION ---
     }
     
     function updateCartDropdown() {
-        // --- MODIFICATION: Prioritize session/cart.php data ---
-        fetchCartFromServer()
-            .then(serverCart => {
-                if (serverCart) {
-                    renderCartDropdown(serverCart);
+        // Fetch cart from server via AJAX
+        fetch('ajax_cart_handler.php?action=get')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    renderCartDropdown(data.cart);
                 } else {
                     // Fallback to localStorage
                     const cart = JSON.parse(localStorage.getItem('cart')) || [];
@@ -1174,7 +1167,6 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
                 const cart = JSON.parse(localStorage.getItem('cart')) || [];
                 renderCartDropdown(cart);
             });
-        // --- END MODIFICATION ---
     }
 
     // --- NEW FUNCTION: Fetch cart from server ---

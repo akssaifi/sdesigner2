@@ -711,33 +711,80 @@ $show_social_links = getSetting($conn, 'show_social_links') ?? '1';
         }
 
         function updateQuantity(index, change, customValue = null) {
-            const cart = JSON.parse(localStorage.getItem('cart')) || [];
-            
+            // Prepare quantity update
+            let newQuantity;
             if (customValue !== null) {
-                const value = parseInt(customValue);
-                if (value >= 1 && value <= 10) {
-                    cart[index].quantity = value;
+                newQuantity = parseInt(customValue);
+                if (newQuantity < 1 || newQuantity > 10) {
+                    showNotification('Quantity must be between 1 and 10', 'error');
+                    return;
                 }
             } else {
-                const newQuantity = cart[index].quantity + change;
-                if (newQuantity >= 1 && newQuantity <= 10) {
-                    cart[index].quantity = newQuantity;
-                }
+                // Calculate new quantity based on change
+                const currentCart = JSON.parse(localStorage.getItem('cart')) || [];
+                const currentQuantity = currentCart[index]?.quantity || 1;
+                newQuantity = currentQuantity + change;
+                if (newQuantity < 1) newQuantity = 1;
+                if (newQuantity > 10) newQuantity = 10;
             }
             
-            localStorage.setItem('cart', JSON.stringify(cart));
-            updateCartDisplay();
-            showNotification('Cart updated');
+            // Send AJAX request to update server-side cart
+            fetch('ajax_cart_handler.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=update&index=${index}&quantity=${newQuantity}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Update localStorage to match server
+                    localStorage.setItem('cart', JSON.stringify(data.cart));
+                    updateCartDisplay();
+                    showNotification('Cart updated');
+                    // Update cart count in navigation
+                    updateCartCount();
+                } else {
+                    showNotification(data.message || 'Error updating cart', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error updating cart:', error);
+                showNotification('Error updating cart', 'error');
+            });
         }
 
         function removeFromCart(index) {
+            // Get item name for notification before removal
             const cart = JSON.parse(localStorage.getItem('cart')) || [];
-            const itemName = cart[index].name;
+            const itemName = cart[index]?.name || 'Item';
             
-            cart.splice(index, 1);
-            localStorage.setItem('cart', JSON.stringify(cart));
-            updateCartDisplay();
-            showNotification(`${itemName} removed from cart`);
+            // Send AJAX request to update server-side cart
+            fetch('ajax_cart_handler.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=remove&index=${index}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Update localStorage to match server
+                    localStorage.setItem('cart', JSON.stringify(data.cart));
+                    updateCartDisplay();
+                    showNotification(`${itemName} removed from cart`);
+                    // Update cart count in navigation
+                    updateCartCount();
+                } else {
+                    showNotification(data.message || 'Error removing item', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error removing item from cart:', error);
+                showNotification('Error removing item from cart', 'error');
+            });
         }
 
         // Checkout function
