@@ -337,160 +337,7 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
         display: flex;
     }
 
-    .cart-dropdown {
-        position: absolute;
-        top: 100%;
-        right: 0;
-        width: 350px;
-        background: white;
-        border: 1px solid var(--gray-200);
-        border-radius: var(--radius);
-        box-shadow: var(--shadow-lg);
-        padding: 0;
-        display: none;
-        z-index: 1003;
-    }
 
-    .cart-dropdown.active {
-        display: block;
-        animation: slideDown 0.3s ease;
-    }
-
-    @keyframes slideDown {
-        from {
-            opacity: 0;
-            transform: translateY(-10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    .cart-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 1rem;
-        border-bottom: 1px solid var(--gray-200);
-    }
-
-    .cart-header h4 {
-        font-size: 1.1rem;
-        color: var(--dark);
-        margin: 0;
-    }
-
-    .close-cart {
-        background: none;
-        border: none;
-        color: var(--gray-500);
-        cursor: pointer;
-        font-size: 1.1rem;
-    }
-
-    .cart-items {
-        max-height: 300px;
-        overflow-y: auto;
-        padding: 1rem;
-    }
-
-    .cart-item {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        padding: 0.75rem;
-        border-bottom: 1px solid var(--gray-200);
-    }
-
-    .cart-item:last-child {
-        border-bottom: none;
-    }
-
-    .cart-item img {
-       height: 60px;
-        object-fit: cover;
-        border-radius: var(--radius);
-    }
-
-    .cart-item-info {
-        flex: 1;
-    }
-
-    .cart-item-info h4 {
-        font-size: 0.9rem;
-        color: var(--dark);
-        margin-bottom: 0.25rem;
-    }
-
-    .cart-item-price {
-        display: flex;
-        justify-content: space-between;
-        font-size: 0.85rem;
-        color: var(--gray-600);
-    }
-
-    .remove-item {
-        background: none;
-        border: none;
-        color: var(--gray-400);
-        cursor: pointer;
-        font-size: 1rem;
-        transition: var(--transition);
-    }
-
-    .remove-item:hover {
-        color: #DC2626;
-    }
-
-    .cart-total {
-        display: flex;
-        justify-content: space-between;
-        font-weight: 600;
-        padding: 1rem;
-        border-top: 2px solid var(--gray-200);
-        background: var(--gray-100);
-    }
-
-    .cart-actions {
-        display: flex;
-        gap: 0.5rem;
-        padding: 1rem;
-        background: white;
-    }
-
-    .cart-actions a {
-        flex: 1;
-        text-align: center;
-        padding: 0.75rem;
-        text-decoration: none;
-        border-radius: var(--radius);
-        font-weight: 500;
-        font-size: 0.9rem;
-    }
-
-    .cart-actions .btn-secondary {
-        background: var(--gray-100);
-        color: var(--dark);
-        border: 1px solid var(--gray-300);
-    }
-
-    .cart-actions .btn-primary {
-        background: var(--primary);
-        color: white;
-        border: 1px solid var(--primary);
-    }
-
-    .empty-cart {
-        text-align: center;
-        padding: 2rem;
-        color: var(--gray-500);
-    }
-
-    .empty-cart i {
-        font-size: 2rem;
-        margin-bottom: 0.5rem;
-    }
 
     /* FIXED: Mobile Menu Toggle - Hamburger Menu */
     .menu-toggle {
@@ -637,18 +484,7 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
             gap: 1rem;
         }
 
-        .cart-dropdown {
-            position: fixed;
-            top: 70px;
-            right: 0;
-            left: 0;
-            width: 100%;
-            max-width: 100%;
-            border-radius: 0;
-            max-height: calc(100vh - 70px);
-            overflow-y: auto;
-            z-index: 1001;
-        }
+
     }
 
     @media (max-width: 640px) {
@@ -666,10 +502,7 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
             padding: 1rem;
         }
 
-        .cart-dropdown {
-            top: 60px;
-            max-height: calc(100vh - 60px);
-        }
+
     }
 
     @media (max-width: 480px) {
@@ -678,9 +511,7 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
             gap: 0.5rem;
         }
 
-        .cart-dropdown {
-            width: 100vw;
-        }
+
     }
 
     /* FIXED: Mobile Menu Overlay */
@@ -830,29 +661,12 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
                     <div class="search-results" id="searchResults"></div>
                 </div>
 
-                <!-- Cart -->
+                <!-- Cart - Now links directly to cart.php -->
                 <div class="cart">
-                    <button class="cart-toggle">
+                    <a href="cart.php" class="cart-toggle">
                         <i class="fas fa-shopping-bag"></i>
                         <span class="cart-count"></span>
-                    </button>
-                    <div class="cart-dropdown">
-                        <div class="cart-header">
-                            <h4>Shopping Cart</h4>
-                            <button class="close-cart"><i class="fas fa-times"></i></button>
-                        </div>
-                        <div class="cart-items" id="cartDropdownItems">
-                            <!-- Cart items will be dynamically added here -->
-                        </div>
-                        <div class="cart-total">
-                            <span>Total:</span>
-                            <span id="cartDropdownTotal">₹0.00</span>
-                        </div>
-                        <div class="cart-actions">
-                            <a href="cart.php" class="btn-secondary">View Cart</a>
-                            <a href="checkout.php" class="btn-primary">Checkout</a>
-                        </div>
-                    </div>
+                    </a>
                 </div>
 
                 <!-- Mobile Menu Toggle - Hamburger Menu -->
@@ -979,45 +793,8 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
             }
         });
         
-        // Cart functionality
-        const cartToggle = document.querySelector('.cart-toggle');
-        const cartDropdown = document.querySelector('.cart-dropdown');
-        const closeCart = document.querySelector('.close-cart');
-        
-        if (cartToggle && cartDropdown) {
-            cartToggle.addEventListener('click', (e) => {
-                e.stopPropagation();
-                cartDropdown.classList.toggle('active');
-                
-                // Close mobile menu if open
-                if (window.innerWidth <= 768 && nav && nav.classList.contains('active')) {
-                    closeMobileMenu();
-                }
-            });
-            
-            if (closeCart) {
-                closeCart.addEventListener('click', () => {
-                    cartDropdown.classList.remove('active');
-                });
-            }
-            
-            // Close cart when clicking outside
-            document.addEventListener('click', (e) => {
-                if (!cartToggle.contains(e.target) && !cartDropdown.contains(e.target)) {
-                    cartDropdown.classList.remove('active');
-                }
-            });
-        }
-        
         // Initialize cart on page load
         updateCartCount();
-        updateCartDropdown();
-
-        // Listen for custom events to update cart from other parts of the site
-        window.addEventListener('cartUpdated', function() {
-            updateCartCount();
-            updateCartDropdown();
-        });
         
         // SIMPLIFIED SEARCH FUNCTIONALITY - WORKING VERSION
         const searchInput = document.getElementById('searchInput');
@@ -1157,25 +934,7 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
         // --- END MODIFICATION ---
     }
     
-    function updateCartDropdown() {
-        // --- MODIFICATION: Prioritize session/cart.php data ---
-        fetchCartFromServer()
-            .then(serverCart => {
-                if (serverCart) {
-                    renderCartDropdown(serverCart);
-                } else {
-                    // Fallback to localStorage
-                    const cart = JSON.parse(localStorage.getItem('cart')) || [];
-                    renderCartDropdown(cart);
-                }
-            })
-            .catch(() => {
-                // Fallback to localStorage
-                const cart = JSON.parse(localStorage.getItem('cart')) || [];
-                renderCartDropdown(cart);
-            });
-        // --- END MODIFICATION ---
-    }
+
 
     // --- NEW FUNCTION: Fetch cart from server ---
     function fetchCartFromServer() {
@@ -1202,40 +961,7 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
     }
     // --- END NEW FUNCTION ---
 
-    // --- NEW FUNCTION: Render cart dropdown HTML ---
-    function renderCartDropdown(cart) {
-        const cartItems = document.getElementById('cartDropdownItems');
-        const cartTotal = document.getElementById('cartDropdownTotal');
 
-        if (cartItems && cartTotal) {
-            if (cart.length === 0) {
-                cartItems.innerHTML = '<div class="empty-cart"><i class="fas fa-shopping-cart"></i><p>Your cart is empty</p></div>';
-                cartTotal.textContent = '₹0.00';
-                return;
-            }
-
-            cartItems.innerHTML = cart.map(item => `
-                <div class="cart-item">
-                    <img src="${item.image || 'assets/images/no-image.jpg'}" alt="${item.name}" 
-                         onerror="this.src='assets/images/no-image.jpg'">
-                    <div class="cart-item-info">
-                        <h4>${item.name}</h4>
-                        <div class="cart-item-price">
-                            <span>₹${formatPrice(item.price)} × ${item.quantity}</span>
-                            <span>₹${formatPrice(item.price * item.quantity)}</span>
-                        </div>
-                    </div>
-                    <button class="remove-item" onclick="removeFromCart('${item.id}')">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            `).join('');
-
-            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            cartTotal.textContent = '₹' + formatPrice(total);
-        }
-    }
-    // --- END NEW FUNCTION ---
     
     function formatPrice(price) {
         return price.toLocaleString('en-IN', {
@@ -1244,45 +970,7 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
         });
     }
     
-    function removeFromCart(productId) {
-    // Find index in cart (not ID — cart.php uses index-based removal)
-    const cart = JSON.parse(localStorage.getItem('cart')) || [];
-    const index = cart.findIndex(item => item.id == productId);
-    
-    if (index === -1) {
-        showNotification('Item not found in cart');
-        return;
-    }
 
-    fetch('cart.php?action=remove&id=' + encodeURIComponent(productId), {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-    })
-    .then(async response => {
-        // 🔥 CRITICAL: Check if response is JSON or HTML
-        const text = await response.text();
-        try {
-            return JSON.parse(text);
-        } catch (e) {
-            // HTML response (e.g., login page, error)
-            console.error('Server returned HTML instead of JSON:', text.substring(0, 200));
-            throw new Error('Server error: HTML received instead of JSON');
-        }
-    })
-    .then(data => {
-        if (data.success) {
-            // Refresh cart from server
-            window.dispatchEvent(new CustomEvent('cartUpdated'));
-            showNotification('Item removed');
-        } else {
-            throw new Error(data.message || 'Failed to remove item');
-        }
-    })
-    .catch(error => {
-        console.error('Remove from cart error:', error);
-        showNotification('❌ ' + (error.message || 'Could not remove item'));
-    });
-}
     
     function showNotification(message) {
         // Remove any existing notifications
