@@ -2,6 +2,11 @@
 // cart.php - Shopping cart page
 require_once 'config.php';
 
+// Start session if not already started
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
 // Handle AJAX requests for cart operations
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
@@ -46,14 +51,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['cart'][] = $item;
             }
             
-            echo json_encode(['success' => true, 'message' => 'Item added to cart']);
+            echo json_encode(['success' => true, 'message' => 'Item added to cart', 'cart' => $_SESSION['cart']]);
             exit;
             
         case 'remove':
             $index = $input['index'] ?? -1;
             if ($index >= 0 && $index < count($_SESSION['cart'])) {
                 array_splice($_SESSION['cart'], $index, 1);
-                echo json_encode(['success' => true, 'message' => 'Item removed from cart']);
+                echo json_encode(['success' => true, 'message' => 'Item removed from cart', 'cart' => $_SESSION['cart']]);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Item not found']);
             }
@@ -64,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $quantity = $input['quantity'] ?? 1;
             if ($index >= 0 && $index < count($_SESSION['cart']) && $quantity > 0) {
                 $_SESSION['cart'][$index]['quantity'] = $quantity;
-                echo json_encode(['success' => true, 'message' => 'Cart updated']);
+                echo json_encode(['success' => true, 'message' => 'Cart updated', 'cart' => $_SESSION['cart']]);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Invalid update']);
             }
@@ -90,6 +95,9 @@ $secondary_phone = getSetting($conn, 'secondary_phone') ?? '9814927250';
 $instagram_url = getSetting($conn, 'instagram_url') ?? '#';
 $facebook_url = getSetting($conn, 'facebook_url') ?? '#';
 $show_social_links = getSetting($conn, 'show_social_links') ?? '1';
+
+// Get cart from session to use in the page
+$cart_items = $_SESSION['cart'] ?? [];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -671,7 +679,7 @@ $show_social_links = getSetting($conn, 'show_social_links') ?? '1';
     </div>
 
     <script>
-        // Load cart on page load
+        // Immediately load cart when page loads
         document.addEventListener('DOMContentLoaded', function() {
             updateCartDisplay();
         });
@@ -696,6 +704,11 @@ $show_social_links = getSetting($conn, 'show_social_links') ?? '1';
                     renderCartItems(cart);
                 });
         }
+        
+        // Immediately load cart when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            updateCartDisplay();
+        });
 
         function renderCartItems(cart) {
             const container = document.getElementById('cart-items-container');
@@ -823,7 +836,7 @@ $show_social_links = getSetting($conn, 'show_social_links') ?? '1';
             }
             
             // Update server first
-            fetch('/cart.php', {
+            fetch('cart.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
@@ -864,7 +877,7 @@ $show_social_links = getSetting($conn, 'show_social_links') ?? '1';
 
         function removeFromCart(index) {
             // Remove from server first
-            fetch('/cart.php', {
+            fetch('cart.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
