@@ -1,8 +1,66 @@
 <?php
-// cart.php - Shopping cart page
+// cart.php - Shopping cart page and API handler
 require_once 'config.php';
 
-// Get boutique information
+// Handle AJAX requests first
+if ($_SERVER['REQUEST_METHOD'] === 'POST' || isset($_GET['action'])) {
+    header('Content-Type: application/json');
+    
+    // Handle POST requests (add, update, remove)
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $input = json_decode(file_get_contents('php://input'), true);
+        // Get action from URL parameter first, then from POST body
+        $action = isset($_GET['action']) ? $_GET['action'] : ($input['action'] ?? '');
+        
+        if ($action === 'add') {
+            // This is an AJAX add to cart request
+            // For now, just return success since we're using localStorage
+            echo json_encode([
+                'success' => true,
+                'message' => 'Item added to cart',
+                'cart' => $input // Return the item that was added
+            ]);
+            exit;
+        } elseif ($action === 'remove') {
+            // This is an AJAX remove from cart request
+            // For now, just return success since we're using localStorage
+            echo json_encode([
+                'success' => true,
+                'message' => 'Item removed from cart'
+            ]);
+            exit;
+        }
+    }
+    
+    // Handle GET requests with action parameter
+    if (isset($_GET['action'])) {
+        $action = $_GET['action'];
+        
+        if ($action === 'get_cart') {
+            // Return cart data for display
+            $cart = json_decode($_COOKIE['cart'] ?? '[]', true) ?: [];
+            $item_count = array_reduce($cart, function($sum, $item) {
+                return $sum + ($item['quantity'] ?? 1);
+            }, 0);
+            
+            echo json_encode([
+                'success' => true,
+                'cart' => $cart,
+                'item_count' => $item_count
+            ]);
+            exit;
+        }
+    }
+    
+    // If we reach here with an action parameter but didn't handle it
+    echo json_encode([
+        'success' => false,
+        'message' => 'Invalid action'
+    ]);
+    exit;
+}
+
+// Get boutique information (for HTML page rendering)
 $boutique_name = getSetting($conn, 'boutique_name') ?? 'SDesigner Boutique';
 $designer_name = getSetting($conn, 'designer_name') ?? 'Dinky Ahuja';
 $location = getSetting($conn, 'location') ?? 'Jalandhar, Punjab';
