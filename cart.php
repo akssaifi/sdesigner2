@@ -1,6 +1,7 @@
 <?php
 // cart.php - Shopping cart page
 require_once 'config.php';
+session_start();
 
 // Get boutique information
 $boutique_name = getSetting($conn, 'boutique_name') ?? 'SDesigner Boutique';
@@ -11,6 +12,94 @@ $secondary_phone = getSetting($conn, 'secondary_phone') ?? '9814927250';
 $instagram_url = getSetting($conn, 'instagram_url') ?? '#';
 $facebook_url = getSetting($conn, 'facebook_url') ?? '#';
 $show_social_links = getSetting($conn, 'show_social_links') ?? '1';
+
+// Handle AJAX requests for cart operations
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action'])) {
+    header('Content-Type: application/json');
+    
+    $input = json_decode(file_get_contents('php://input'), true);
+    $action = $_GET['action'] ?? '';
+    
+    // Initialize cart session if not exists
+    if (!isset($_SESSION['cart'])) {
+        $_SESSION['cart'] = [];
+    }
+    
+    try {
+        switch ($action) {
+            case 'get_cart':
+                $cart = $_SESSION['cart'] ?? [];
+                $totalItems = array_sum(array_column($cart, 'quantity'));
+                
+                echo json_encode([
+                    'success' => true,
+                    'cart' => $cart,
+                    'item_count' => $totalItems
+                ]);
+                exit;
+                
+            case 'update':
+                $id = $input['id'] ?? 0;
+                $quantity = $input['quantity'] ?? 1;
+                
+                if ($quantity <= 0) {
+                    // Remove item if quantity is 0 or less
+                    $_SESSION['cart'] = array_filter($_SESSION['cart'], function($item) use ($id) {
+                        return $item['id'] != $id;
+                    });
+                } else {
+                    // Update quantity
+                    foreach ($_SESSION['cart'] as &$item) {
+                        if ($item['id'] == $id) {
+                            $item['quantity'] = $quantity;
+                            break;
+                        }
+                    }
+                }
+                
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Cart updated',
+                    'cart_count' => array_sum(array_column($_SESSION['cart'], 'quantity'))
+                ]);
+                exit;
+                
+            case 'remove':
+                $id = $input['id'] ?? 0;
+                
+                $_SESSION['cart'] = array_filter($_SESSION['cart'], function($item) use ($id) {
+                    return $item['id'] != $id;
+                });
+                
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Item removed from cart',
+                    'cart_count' => array_sum(array_column($_SESSION['cart'], 'quantity'))
+                ]);
+                exit;
+                
+            case 'clear':
+                $_SESSION['cart'] = [];
+                
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Cart cleared',
+                    'cart_count' => 0
+                ]);
+                exit;
+                
+            default:
+                throw new Exception('Invalid action');
+        }
+    } catch (Exception $e) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'message' => $e->getMessage()
+        ]);
+        exit;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -594,8 +683,30 @@ $show_social_links = getSetting($conn, 'show_social_links') ?? '1';
     <script>
         // Load cart on page load
         document.addEventListener('DOMContentLoaded', function() {
-            updateCartDisplay();
+            loadCartFromServer();
         });
+
+        function loadCartFromServer() {
+            fetch('cart.php?action=get_cart')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update localStorage with server cart data
+                        localStorage.setItem('cart', JSON.stringify(data.cart));
+                        // Display the cart
+                        updateCartDisplay();
+                    } else {
+                        console.error('Error loading cart:', data.message);
+                        // Fallback to localStorage
+                        updateCartDisplay();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching cart:', error);
+                    // Fallback to localStorage
+                    updateCartDisplay();
+                });
+        }
 
         function updateCartDisplay() {
             const cart = JSON.parse(localStorage.getItem('cart')) || [];
@@ -713,31 +824,81 @@ $show_social_links = getSetting($conn, 'show_social_links') ?? '1';
         function updateQuantity(index, change, customValue = null) {
             const cart = JSON.parse(localStorage.getItem('cart')) || [];
             
+            let newQuantity;
             if (customValue !== null) {
-                const value = parseInt(customValue);
-                if (value >= 1 && value <= 10) {
-                    cart[index].quantity = value;
-                }
+                newQuantity = parseInt(customValue);
             } else {
-                const newQuantity = cart[index].quantity + change;
-                if (newQuantity >= 1 && newQuantity <= 10) {
-                    cart[index].quantity = newQuantity;
-                }
+                newQuantity = cart[index].quantity + change;
             }
             
-            localStorage.setItem('cart', JSON.stringify(cart));
-            updateCartDisplay();
-            showNotification('Cart updated');
+            if (newQuantity >= 1 && newQuantity <= 10) {
+                cart[index].quantity = newQuantity;
+                
+                // Update localStorage
+                localStorage.setItem('cart', JSON.stringify(cart));
+                
+                // Update server session
+                fetch('cart.php?action=update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        id: cart[index].id,
+                        quantity: newQuantity
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updateCartDisplay();
+                        showNotification('Cart updated');
+                    } else {
+                        console.error('Error updating cart:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating cart:', error);
+                    // Update display anyway
+                    updateCartDisplay();
+                    showNotification('Cart updated');
+                });
+            }
         }
 
         function removeFromCart(index) {
             const cart = JSON.parse(localStorage.getItem('cart')) || [];
-            const itemName = cart[index].name;
+            const item = cart[index];
+            const itemName = item.name;
             
             cart.splice(index, 1);
             localStorage.setItem('cart', JSON.stringify(cart));
-            updateCartDisplay();
-            showNotification(`${itemName} removed from cart`);
+            
+            // Update server session
+            fetch('cart.php?action=remove', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    id: item.id
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateCartDisplay();
+                    showNotification(`${itemName} removed from cart`);
+                } else {
+                    console.error('Error removing item:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error removing item:', error);
+                // Update display anyway
+                updateCartDisplay();
+                showNotification(`${itemName} removed from cart`);
+            });
         }
 
         // Checkout function
@@ -783,12 +944,14 @@ $show_social_links = getSetting($conn, 'show_social_links') ?? '1';
         function showNotification(message) {
             const notification = document.getElementById('mobileNotification');
             const messageSpan = notification.querySelector('span');
-            messageSpan.textContent = message;
-            
-            notification.classList.add('show');
-            setTimeout(() => {
-                notification.classList.remove('show');
-            }, 3000);
+            if (messageSpan) {
+                messageSpan.textContent = message;
+                
+                notification.classList.add('show');
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
         }
     </script>
 </body>
