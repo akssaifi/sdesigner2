@@ -1,0 +1,81 @@
+# SDesigner Boutique - .htaccess
+# Works on both XAMPP (in fs2 subdirectory) and live server
+
+RewriteEngine On
+
+# Detect if we're in XAMPP fs2 subdirectory
+RewriteCond %{DOCUMENT_ROOT}/fs2/$1 -f [OR]
+RewriteCond %{DOCUMENT_ROOT}/fs2/$1 -d
+RewriteRule ^(.*)$ - [ENV=XAMPP_FS2:true]
+
+# Set RewriteBase dynamically
+RewriteCond %{ENV:XAMPP_FS2} true
+RewriteRule .* - [E=BASE:/fs2/]
+
+RewriteCond %{ENV:BASE} ^$
+RewriteRule .* - [E=BASE:/]
+
+RewriteBase %{ENV:BASE}
+
+# Exclude checkout.php from any URL rewriting
+RewriteRule ^checkout\.php$ - [L]
+
+# Redirect .php to non-.php (except checkout.php)
+RewriteCond %{THE_REQUEST} !checkout\.php [NC]
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s([^.]+)\.php [NC]
+RewriteRule ^ %1 [R=301,L]
+
+# Internally rewrite non-.php to .php (except checkout.php)
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{ENV:XAMPP_FS2} true
+RewriteCond %{DOCUMENT_ROOT}/fs2/$1.php -f
+RewriteCond %{REQUEST_URI} !^/checkout [NC]
+RewriteRule ^(.*?)/?$ /fs2/$1.php [L]
+
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{ENV:XAMPP_FS2} !true
+RewriteCond %{DOCUMENT_ROOT}/$1.php -f
+RewriteCond %{REQUEST_URI} !^/checkout [NC]
+RewriteRule ^(.*?)/?$ $1.php [L]
+
+# Prevent directory listing
+Options -Indexes
+
+# Block access to sensitive files
+<FilesMatch "^\.|\.(log|sql|bak|ini|conf|config|json|env)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Protect specific files
+<FilesMatch "^(config|phpmailer_helper)\.php$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Security headers
+<IfModule mod_headers.c>
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# Error pages - XAMPP specific
+ErrorDocument 404 /fs2/error.php?code=404
+ErrorDocument 500 /fs2/error.php?code=500
+
+# Live server error pages (commented out for XAMPP)
+# ErrorDocument 404 /error.php?code=404
+# ErrorDocument 500 /error.php?code=500
+
+# PHP Configuration - adjust paths for XAMPP
+<IfModule mod_php.c>
+    php_flag display_errors off
+    php_flag log_errors on
+    php_value error_reporting E_ALL
+    # XAMPP error log path - adjust as needed
+    php_value error_log "C:/xampp/php/logs/php_errors.log"
+    # Live server error log (commented out for XAMPP)
+    # php_value error_log /home/u211483608/domains/sdesignerjal.in/logs/php_errors.log
+</IfModule>
+
