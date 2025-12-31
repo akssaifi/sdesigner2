@@ -1,6 +1,142 @@
 <?php
 // cart.php - Shopping cart page
+session_start(); // Start session to store cart data
 require_once 'config.php';
+
+// Handle AJAX requests
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_CONTENT_TYPE']) && strpos($_SERVER['HTTP_CONTENT_TYPE'], 'application/json') !== false) {
+    $input = json_decode(file_get_contents('php://input'), true);
+    $action = $input['action'] ?? '';
+    
+    header('Content-Type: application/json');
+    
+    if ($action === 'add') {
+        // Initialize cart if not exists
+        if (!isset($_SESSION['cart'])) {
+            $_SESSION['cart'] = [];
+        }
+        
+        $id = $input['id'] ?? '';
+        $quantity = $input['quantity'] ?? 1;
+        $name = $input['name'] ?? '';
+        $price = $input['price'] ?? 0;
+        $image = $input['image'] ?? '';
+        
+        // Check if item already exists in cart
+        $item_exists = false;
+        foreach ($_SESSION['cart'] as &$item) {
+            if ($item['id'] == $id) {
+                $item['quantity'] += $quantity;
+                $item_exists = true;
+                break;
+            }
+        }
+        
+        // If item doesn't exist, add it to cart
+        if (!$item_exists) {
+            $_SESSION['cart'][] = [
+                'id' => $id,
+                'name' => $name,
+                'price' => $price,
+                'image' => $image,
+                'quantity' => $quantity
+            ];
+        }
+        
+        // Calculate total items in cart
+        $total_items = array_sum(array_column($_SESSION['cart'], 'quantity'));
+        
+        echo json_encode([
+            'success' => true,
+            'message' => 'Item added to cart',
+            'item_count' => $total_items,
+            'cart' => $_SESSION['cart']
+        ]);
+        exit;
+    }
+} elseif (isset($_GET['action'])) {
+    $action = $_GET['action'];
+    header('Content-Type: application/json');
+    
+    if ($action === 'get_cart') {
+        // Return cart information
+        $cart = $_SESSION['cart'] ?? [];
+        $item_count = 0;
+        
+        if (!empty($cart)) {
+            $item_count = array_sum(array_column($cart, 'quantity'));
+        }
+        
+        echo json_encode([
+            'success' => true,
+            'item_count' => $item_count,
+            'cart' => $cart
+        ]);
+        exit;
+    } elseif ($action === 'remove') {
+        // Remove item from cart
+        $id = $_GET['id'] ?? '';
+        
+        if (isset($_SESSION['cart'])) {
+            $_SESSION['cart'] = array_filter($_SESSION['cart'], function($item) use ($id) {
+                return $item['id'] != $id;
+            });
+        }
+        
+        $cart = $_SESSION['cart'] ?? [];
+        $item_count = array_sum(array_column($cart, 'quantity'));
+        
+        echo json_encode([
+            'success' => true,
+            'item_count' => $item_count,
+            'cart' => $cart
+        ]);
+        exit;
+    } elseif ($action === 'update') {
+        // Update item quantity in cart
+        $id = $_GET['id'] ?? '';
+        $quantity = (int)($_GET['quantity'] ?? 1);
+        
+        if ($quantity <= 0) {
+            // If quantity is 0 or less, remove item
+            if (isset($_SESSION['cart'])) {
+                $_SESSION['cart'] = array_filter($_SESSION['cart'], function($item) use ($id) {
+                    return $item['id'] != $id;
+                });
+            }
+        } else {
+            // Update quantity
+            if (isset($_SESSION['cart'])) {
+                foreach ($_SESSION['cart'] as &$item) {
+                    if ($item['id'] == $id) {
+                        $item['quantity'] = $quantity;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        $cart = $_SESSION['cart'] ?? [];
+        $item_count = array_sum(array_column($cart, 'quantity'));
+        
+        echo json_encode([
+            'success' => true,
+            'item_count' => $item_count,
+            'cart' => $cart
+        ]);
+        exit;
+    } elseif ($action === 'clear') {
+        // Clear entire cart
+        $_SESSION['cart'] = [];
+        
+        echo json_encode([
+            'success' => true,
+            'item_count' => 0,
+            'cart' => []
+        ]);
+        exit;
+    }
+}
 
 // Get boutique information
 $boutique_name = getSetting($conn, 'boutique_name') ?? 'SDesigner Boutique';

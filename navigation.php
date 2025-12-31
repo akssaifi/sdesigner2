@@ -1254,10 +1254,9 @@ $boutique_name = isset($boutique_name) ? $boutique_name : 'SDesigner Boutique';
         return;
     }
 
-    fetch('/cart.php?action=remove', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ index: index })
+    fetch('cart.php?action=remove&id=' + encodeURIComponent(productId), {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
     })
     .then(async response => {
         // 🔥 CRITICAL: Check if response is JSON or HTML

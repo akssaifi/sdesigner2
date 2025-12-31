@@ -1,6 +1,7 @@
 <?php
 // products.php - Product listing page with filtering
 
+session_start(); // Start session for cart functionality
 require_once 'config.php';
 
 // Get boutique information
@@ -876,6 +877,29 @@ if ($category_id > 0) {
         .clear-filters-btn:hover {
             background: var(--gray-200);
         }
+        
+        /* Mobile Notification */
+        .mobile-notification {
+            position: fixed;
+            bottom: 1rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--primary);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            z-index: 9999;
+            transition: transform 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            max-width: 90%;
+        }
+
+        .mobile-notification.show {
+            transform: translateX(-50%) translateY(0);
+        }
     </style>
 </head>
 <body>
@@ -1173,7 +1197,11 @@ if ($category_id > 0) {
     <?php include 'footer.php'; ?>
 
     <!-- Mobile Notification -->
-    
+    <div class="mobile-notification" id="mobileNotification">
+        <i class="fas fa-check-circle"></i>
+        <span></span>
+    </div>
+
 
     <script>
         // Mobile filters toggle
@@ -1377,7 +1405,7 @@ function addToCart(product) {
 
         // Shared cart sync for all pages
 function updateCartCount() {
-    fetch('/cart.php?action=get_cart')
+    fetch('cart.php?action=get_cart')
         .then(async r => {
             const text = await r.text();
             try {
@@ -1416,7 +1444,15 @@ window.addEventListener('cartUpdated', updateCartCount);
 
         // Mobile notification function
         function showMobileNotification(message) {
-            const notification = document.getElementById('mobileNotification');
+            let notification = document.getElementById('mobileNotification');
+            if (!notification) {
+                // Create notification element if it doesn't exist
+                notification = document.createElement('div');
+                notification.id = 'mobileNotification';
+                notification.className = 'mobile-notification';
+                notification.innerHTML = '<i class="fas fa-check-circle"></i><span></span>';
+                document.body.appendChild(notification);
+            }
             const messageSpan = notification.querySelector('span');
             messageSpan.textContent = message;
             
