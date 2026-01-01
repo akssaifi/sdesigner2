@@ -59,12 +59,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $length_in_meters = NULL;
 
         // In form processing section, after getting other fields:
-        $stitch_charges = NULL;
+        $stitch_charges = isset($_POST['stitch_charges']) ? floatval($_POST['stitch_charges']) : 0;
 
         if ($product_type === 'unstitched') {
             $price_per_meter = isset($_POST['price_per_meter']) ? floatval($_POST['price_per_meter']) : NULL;
             $length_in_meters = isset($_POST['length_in_meters']) ? floatval($_POST['length_in_meters']) : NULL;
-            $stitch_charges = isset($_POST['stitch_charges']) ? floatval($_POST['stitch_charges']) : 0;  // ADD THIS
         }
 
         // Validate required fields
@@ -123,10 +122,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Insert new product
                     $stmt = $conn->prepare("INSERT INTO products (
                     product_type, name, description, price, 
-                    price_per_meter, length_in_meters,
+                    price_per_meter, length_in_meters, stitch_charges,
                     category_id, size_chart_id, stock_quantity, 
                     reorder_level, is_active, stock_status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
                     CASE 
                         WHEN ? = 0 THEN 'out_of_stock'
                         WHEN ? <= ? THEN 'low_stock'
@@ -134,13 +133,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     END)");
 
                     $stmt->bind_param(
-                        "sssddiiiiiiiii",
+                        "sssdddiiiiiiii",
                         $product_type,
                         $name,
                         $description,
                         $price,
                         $price_per_meter,
                         $length_in_meters,
+                        $stitch_charges,
                         $category_id,
                         $size_chart_id,
                         $stock_quantity,
